@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ميزانية الوجبات</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e8efee;--panel:#f7faf9;--ink:#143733;--mute:#5d7773;--line:#c3d3d0;--acc:#0f766e;--acc-ink:#fff;--sun:#f2b632;--day:#dce8e6;--week:#143733;--week-ink:#f7faf9;--hot:#b4430c;--drop:#fff3cf;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1a19;--panel:#15272560;--ink:#e4f0ee;--mute:#92aeaa;--line:#2c4643;--acc:#2dd4bf;--acc-ink:#05211e;--sun:#f2b632;--day:#1b3330;--week:#2dd4bf;--week-ink:#05211e;--hot:#fb9a62;--drop:#4a3c12;color-scheme:dark}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{background:var(--bg);color:var(--ink);font-family:"Tajawal",system-ui,sans-serif;font-size:15px;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;gap:8px}
+header h1{font-size:19px;margin:0;font-weight:800}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:8px 14px;background:var(--acc);color:var(--acc-ink);font-weight:700}
+button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+button.danger{background:transparent;color:var(--hot);border:1.5px solid var(--hot)}
+main{flex:1;min-height:0;display:flex;gap:10px;padding:0 10px 10px}
+.col{background:var(--panel);border-radius:14px;overflow-y:auto;min-height:0;position:relative}
+#items{flex:0 0 38%;padding:8px;display:flex;flex-direction:column;gap:8px}
+#days{flex:1;padding:0 8px;overflow-x:hidden}
+.item{touch-action:pan-y;display:flex;justify-content:space-between;align-items:center;gap:6px;padding:11px 12px;border-radius:12px;background:var(--bg);border:2px solid var(--line);cursor:grab}
+.item.sel{border-color:var(--sun);background:var(--drop)}
+.item b{font-weight:700}.item span{color:var(--mute);font-size:13px;white-space:nowrap}
+.hint{color:var(--mute);font-size:13px;padding:4px 4px 0;line-height:1.6}
+.week{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;background:var(--week);color:var(--week-ink);border-radius:10px;padding:8px 12px;margin-top:14px;font-weight:800}
+.week small{font-weight:500;opacity:.85;display:block;font-size:12px}
+.day{margin-top:8px;border:1.5px solid var(--line);border-radius:12px;overflow:hidden}
+.dh{display:flex;justify-content:space-between;background:var(--day);padding:6px 10px;font-weight:700}
+.dh em{font-style:normal;color:var(--hot)}
+.meal{display:flex;gap:6px;align-items:flex-start;padding:6px 10px;min-height:40px;border-top:1px dashed var(--line)}
+.meal.over{background:var(--drop);outline:2px solid var(--sun);outline-offset:-2px}
+.meal .mn{flex:0 0 48px;color:var(--mute);font-size:13px;padding-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.chip{background:var(--acc);color:var(--acc-ink);border-radius:8px;padding:3px 8px;font-size:13px;font-weight:500}
+.month{position:sticky;bottom:0;margin:14px 0 8px;display:flex;justify-content:space-between;background:var(--sun);color:#2b2100;border-radius:12px;padding:12px 14px;font-weight:800;font-size:17px}
+#ghost{position:fixed;pointer-events:none;z-index:50;padding:8px 12px;background:var(--sun);color:#2b2100;border-radius:10px;font-weight:700;box-shadow:0 6px 18px #0004;transform:translate(-50%,-120%)}
+.set{padding:14px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;max-width:640px;width:100%;margin:0 auto}
+.card{background:var(--panel);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font-size:16px}
+label{display:flex;flex-direction:column;gap:4px;color:var(--mute);font-size:13px}
+input,select{font:inherit;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;user-select:text;-webkit-user-select:text}
+.row{display:flex;gap:8px;align-items:flex-end}.row>*{flex:1}.row>button{flex:0 0 auto}
+.irow input:first-child{flex:2}
+</style>
+</head>
+<body>
+<header><h1 id="title">ميزانية الوجبات</h1><button id="nav" class="ghost">الإعدادات</button></header>
+<div id="app" style="display:flex;flex-direction:column;flex:1;min-height:0"></div>
+<div id="ghost" hidden></div>
+<script>
+const DN=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],MEALS=['فطار','غداء','عشاء'];
+const pad=n=>String(n).padStart(2,'0'),iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today=new Date(),end0=new Date(today);end0.setDate(end0.getDate()+29);
+let S={start:iso(today),end:iso(end0),weekStart:'',cur:'ج.م',items:[{id:1,name:'فول وطعمية',price:20},{id:2,name:'فراخ مشوية',price:90},{id:3,name:'أرز وخضار',price:35},{id:4,name:'جبنة وبيض',price:25}],plan:{},nid:5};
+try{const r=localStorage.getItem('mealbudget');if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+const save=()=>{try{localStorage.setItem('mealbudget',JSON.stringify(S))}catch(e){}};
+const fmt=n=>n.toLocaleString('ar-EG')+' '+esc(S.cur);
+const price=id=>{const i=S.items.find(x=>x.id===id);return i?i.price:0};
+function daysList(){let d=parse(S.start),e=parse(S.end);if(isNaN(d)||isNaN(e))return[];
+ if(S.weekStart!==''){let g=0;while(d.getDay()!=S.weekStart&&g++<7)d.setDate(d.getDate()+1)}
+ const out=[];while(d<=e&&out.length<93){out.push(new Date(d));d.setDate(d.getDate()+1)}return out}
+const mealSum=k=>(S.plan[k]||[]).reduce((a,id)=>a+price(id),0);
+let view='main',sel=null;
+const $=id=>document.getElementById(id),app=$('app');
+function render(){
+ const sc=[ $('items')?.scrollTop||0, $('days')?.scrollTop||0 ];
+ $('nav').textContent=view==='main'?'الإعدادات':'رجوع للجدول';
+ view==='main'?renderMain():renderSet();
+ if($('items')){$('items').scrollTop=sc[0];$('days').scrollTop=sc[1]}
+}
+function otherHtml(k,label){return `<div class="day"><div class="dh"><span>${label}</span><em>${fmt(mealSum(k))}</em></div><div class="meal" data-k="${k}"><div class="mn">أخرى</div><div class="chips">${(S.plan[k]||[]).map((id,ix)=>{const it=S.items.find(x=>x.id===id);return it?`<span class="chip" data-k="${k}" data-ix="${ix}">${esc(it.name)} ×</span>`:''}).join('')}</div></div></div>`}
+function daysHtml(){
+ const ds=daysList();let h='',total=0;
+ for(let i=0;i<ds.length;i+=7){
+  const wk=ds.slice(i,i+7);let ws=0,dh='';
+  wk.forEach(d=>{let t=0,ms='';MEALS.forEach((m,mi)=>{const k=iso(d)+'|'+mi;t+=mealSum(k);
+   ms+=`<div class="meal" data-k="${k}"><div class="mn">${m}</div><div class="chips">${(S.plan[k]||[]).map((id,ix)=>{const it=S.items.find(x=>x.id===id);return it?`<span class="chip" data-k="${k}" data-ix="${ix}">${esc(it.name)} ×</span>`:''}).join('')}</div></div>`});
+   ws+=t;dh+=`<div class="day"><div class="dh"><span>${DN[d.getDay()]} ${d.getDate().toLocaleString('ar-EG')}</span><em>${fmt(t)}</em></div>${ms}</div>`});
+  const wkK='W|'+(i/7);ws+=mealSum(wkK);dh+=otherHtml(wkK,'أخرى للأسبوع');total+=ws;
+  const a=wk[0],b=wk[wk.length-1];
+  h+=`<div class="week"><div>الأسبوع ${(i/7+1).toLocaleString('ar-EG')}<small>${a.getDate().toLocaleString('ar-EG')}/${(a.getMonth()+1).toLocaleString('ar-EG')} – ${b.getDate().toLocaleString('ar-EG')}/${(b.getMonth()+1).toLocaleString('ar-EG')}</small></div><div>${fmt(ws)}</div></div>${dh}`}
+ if(!ds.length)h='<p class="hint">حدد تاريخ البداية والنهاية من صفحة الإعدادات.</p>';
+ else h+=otherHtml('M','أخرى للشهر')+`<div class="month"><span>إجمالي الشهر</span><span>${fmt(total+mealSum('M'))}</span></div>`;
+ return h}
+function renderMain(){
+ app.innerHTML=`<main><div class="col" id="items"><div class="hint">اسحب الصنف إلى وجبة، أو المس الصنف ثم المس الوجبة.</div>${S.items.map(it=>`<div class="item${sel===it.id?' sel':''}" data-id="${it.id}"><b>${esc(it.name)}</b><span>${fmt(it.price)}</span></div>`).join('')||'<p class="hint">لا توجد أصناف. أضفها من الإعدادات.</p>'}</div><div class="col" id="days">${daysHtml()}</div></main>`;
+}
+function renderSet(){
+ app.innerHTML=`<div class="set">
+ <div class="card"><h2>الفترة</h2><div class="row"><label>من<input type="date" id="s1" value="${S.start}"></label><label>إلى<input type="date" id="s2" value="${S.end}"></label></div>
+ <label>أول يوم في الأسبوع<select id="s3"><option value="">حسب تاريخ البداية</option>${DN.map((n,i)=>`<option value="${i}"${String(S.weekStart)===String(i)?' selected':''}>${n}</option>`).join('')}</select></label>
+ <label>العملة<input id="s4" value="${esc(S.cur)}"></label></div>
+ <div class="card"><h2>الأصناف والأسعار</h2><div id="il">${S.items.map(it=>`<div class="row irow" style="margin-bottom:8px" data-id="${it.id}"><input class="n" value="${esc(it.name)}"><input class="p" type="number" min="0" step="any" inputmode="decimal" value="${it.price}"><button class="danger del">حذف</button></div>`).join('')}</div>
+ <div class="row irow"><input id="nn" placeholder="اسم الصنف"><input id="np" type="number" min="0" step="any" inputmode="decimal" placeholder="السعر"><button id="add">إضافة</button></div></div>
+ <button class="danger" id="clr">مسح كل الوجبات من الجدول</button></div>`;
+}
+document.addEventListener('change',e=>{const t=e.target;if(view!=='set')return;
+ if(t.id==='s1')S.start=t.value;else if(t.id==='s2')S.end=t.value;else if(t.id==='s3')S.weekStart=t.value;else if(t.id==='s4')S.cur=t.value;
+ else if(t.closest('.irow[data-id]')){const it=S.items.find(x=>x.id==t.closest('.irow').dataset.id);if(it){if(t.classList.contains('n'))it.name=t.value;else it.price=Math.max(0,parseFloat(t.value)||0)}}
+ save()});
+document.addEventListener('click',e=>{const t=e.target;
+ if(t.id==='nav'){view=view==='main'?'set':'main';render();return}
+ if(view==='set'){
+  if(t.id==='add'){const n=$('nn').value.trim();if(!n)return;S.items.push({id:S.nid++,name:n,price:Math.max(0,parseFloat($('np').value)||0)});save();render()}
+  if(t.classList.contains('del')){const id=+t.closest('.irow').dataset.id;S.items=S.items.filter(x=>x.id!==id);for(const k in S.plan)S.plan[k]=S.plan[k].filter(x=>x!==id);save();render()}
+  if(t.id==='clr'&&confirm('مسح كل الوجبات من الجدول؟')){S.plan={};save();render()}
+  return}
+ const chip=t.closest('.chip');if(chip){S.plan[chip.dataset.k].splice(+chip.dataset.ix,1);save();renderDays();return}
+ const meal=t.closest('.meal');if(meal&&sel){add(meal.dataset.k,sel);return}
+ const item=t.closest('.item');if(item&&!justDragged){const id=+item.dataset.id;sel=sel===id?null:id;render()}
+});
+function renderDays(){const d=$('days'),s=d.scrollTop;d.innerHTML=daysHtml();d.scrollTop=s}
+function add(k,id){(S.plan[k]=S.plan[k]||[]).push(id);save();renderDays()}
+let drag=null,justDragged=false;
+document.addEventListener('pointerdown',e=>{const it=e.target.closest('.item[data-id]');if(!it||view!=='main')return;drag={id:+it.dataset.id,x:e.clientX,y:e.clientY,on:false,name:it.querySelector('b').textContent}});
+window.addEventListener('pointermove',e=>{if(!drag)return;
+ if(!drag.on){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)>8&&Math.abs(dx)>=Math.abs(dy)||(e.pointerType==='mouse'&&Math.hypot(dx,dy)>6)){drag.on=true;const g=$('ghost');g.textContent=drag.name;g.hidden=false}else return}
+ const g=$('ghost');g.style.left=e.clientX+'px';g.style.top=e.clientY+'px';
+ document.querySelectorAll('.meal.over').forEach(m=>m.classList.remove('over'));
+ const m=document.elementFromPoint(e.clientX,e.clientY)?.closest('.meal');if(m)m.classList.add('over');
+ const c=$('days').getBoundingClientRect();
+ if(e.clientY<c.top+50)$('days').scrollTop-=12;else if(e.clientY>c.bottom-50)$('days').scrollTop+=12});
+function endDrag(e,drop){if(!drag)return;const d=drag;drag=null;
+ if(!d.on)return;justDragged=true;setTimeout(()=>justDragged=false,50);
+ $('ghost').hidden=true;document.querySelectorAll('.meal.over').forEach(m=>m.classList.remove('over'));
+ if(drop){const m=document.elementFromPoint(e.clientX,e.clientY)?.closest('.meal');if(m)add(m.dataset.k,d.id)}}
+window.addEventListener('pointerup',e=>endDrag(e,true));
+window.addEventListener('pointercancel',e=>endDrag(e,false));
+render();
+</script>
+</body>
+</html>
